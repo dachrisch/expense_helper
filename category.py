@@ -9,6 +9,9 @@ Created on Feb 23, 2012
 
 import re
 import logging
+import time
+from email.utils import parsedate 
+from datetime import date
 
 def extract_nested_inbox(inbox):
     return inbox.split('/')[-1].replace('"', '').replace(' ', '')
@@ -37,10 +40,6 @@ class EmailCategorizer(object):
         return email
     
     def __parse_date(self, send_date_rfc_2822):
-        import time
-        from email.utils import parsedate 
-        from datetime import date
-    
         date_tuple = parsedate(send_date_rfc_2822)
         timestamp = time.mktime(date_tuple)
         send_date = date.fromtimestamp(timestamp)
@@ -66,6 +65,7 @@ class CostCenterMatcher(object):
         for inbox in cost_center_inboxes:
             emails = connection.read_from(inbox, '(BODY[HEADER.FIELDS (Message-ID)])')
             for email in emails:
+                self.log.debug('determining cost center for [%s]' % email)
                 self.costcenters[email['Message-ID'].strip()] = extract_nested_inbox(inbox)
         self.log.debug('determined cost centers: %s' % self.costcenters)
 
