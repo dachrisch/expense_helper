@@ -11,23 +11,26 @@ import logging
 import logging.config
 import sys
 from mail.imap import connector_for
-from category import EmailCategorizer
+from category import EmailCategorizerFactory
 
-    
+def fetch_expense_inboxes(connection):
+    return connection.filter_inboxes(lambda inbox: inbox.startswith('"spesen/'))
+
 def main():
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-    connection = connector_for('imap.googlemail.com')
-    
     username = 'christian.daehn@it-agile.de'
     password = getpass.getpass('password for [%s]: ' % username)
-    connection._login(username, password)
+    connection = connector_for('imap.googlemail.com')._login(username, password)
     
-    expense_inboxes = connection.filter_inboxes(lambda inbox: inbox.startswith('"spesen/'))
+    email_categorizer = EmailCategorizerFactory.create(connection)
+
+    expense_inboxes = fetch_expense_inboxes(connection)
     
     for inbox in expense_inboxes:
         emails = connection.read_from(inbox)
-        EmailCategorizer().categorize(inbox, emails)
+        email_categorizer.categorize(inbox, emails)
+
 
     connection.close()
 

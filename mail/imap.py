@@ -8,6 +8,7 @@ Created on Feb 23, 2012
 '''
 import logging
 import email
+from email.header import decode_header
 import imaplib
 
 class ImapConnector(object):
@@ -18,6 +19,7 @@ class ImapConnector(object):
     def _login(self, username, password):
         self.log.info('logging in [%s]' % username)
         self.imap.login(username, password)
+        return self
         
     def filter_inboxes(self, criteria):
         status, available_inboxes = self.imap.list()
@@ -39,9 +41,19 @@ class ImapConnector(object):
         for uid in uids:
             response, rfc822_mail = self.imap.uid('fetch', uid, '(BODY[HEADER.FIELDS (DATE SUBJECT FROM Message-ID)])')
             assert response == 'OK', response
-            yield email.message_from_string(rfc822_mail[0][1])
+            parsed_email = email.message_from_string(rfc822_mail[0][1])
+            yield {
+                   'Subject' : self.__remove_encoding(parsed_email['Subject']),
+                   'DATE' : parsed_email['DATE'],
+                   'FROM' : parsed_email['FROM'],
+                   'Message-ID' : parsed_email['Message-ID'],
+                   }
             
-    
+    def __remove_encoding(self, text):
+        texts_with_charsets = decode_header(text)
+        decoded_text = ''.join([ unicode(t[0], t[1] or 'ASCII') for t in texts_with_charsets ])
+        return decoded_text.encode('utf-8')
+
     def read_from(self, inbox):
         self.imap.select(inbox, readonly = True)
 
