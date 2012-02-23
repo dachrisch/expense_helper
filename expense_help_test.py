@@ -8,6 +8,7 @@ import logging
 import sys
 from expense_help import ExpenseHelper
 from category import EmailCategorizerFactory, EmailFilter
+import ConfigParser
 
 class DummyEmail(dict):
     def replace_header(self, header, value):
@@ -49,7 +50,11 @@ class DummySmtpConnector(object):
 class TestPasswordProvider(object):
     def password(self, username):
         return 'foo'
-
+    
+class DummyConfigProvider(object):
+    def get(self, section, key):
+        return 'foo'
+    
 def test_imap_factory(server):
     return DummyImapConnector()
 
@@ -61,13 +66,15 @@ class ExpenseHelperTest(unittest.TestCase):
         ExpenseHelper(imap_factory = test_imap_factory, password_provider = lambda x: x, confirmation_provider = lambda x: 'y', smtp_factory = test_smtp_factory).run()
     
     def test_categorize_email(self):
-        email_categorizer = EmailCategorizerFactory.create(DummyImapConnector())
+        cp = ConfigParser.ConfigParser()
+        cp.read('expense.ini')
+        email_categorizer = EmailCategorizerFactory.create(DummyImapConnector(), cp)
         categorized_emails = email_categorizer.categorize('spesen/KKAR', (dummy_mail(), ))
         assert 1 == len(categorized_emails), categorized_emails
         assert 'KKAR' == categorized_emails[0]['categorized']['payment_type'], categorized_emails[0]['categorized']
     
     def test_candidate_filter(self):
-        candidates = EmailFilter().filter_candidates((dummy_mail(), ))
+        candidates = EmailFilter(DummyConfigProvider()).filter_candidates((dummy_mail(), ))
         for c in candidates:
             assert 'Fwd: K10 KKAR here 02.03.2012 (was: foobar2)' == c['Subject'], c['Subject']
         

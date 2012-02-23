@@ -18,8 +18,8 @@ def extract_nested_inbox(inbox):
     
 class EmailCategorizerFactory(object):
     @staticmethod
-    def create(connection):
-        return EmailCategorizer(CostCenterMatcher(connection))
+    def create(connection, config_provider):
+        return EmailCategorizer(CostCenterMatcher(connection, config_provider))
 
 class EmailCategorizer(object):
     def __init__(self, costcenter_matcher):
@@ -57,9 +57,9 @@ class EmailCategorizer(object):
         return 'UNKNOWN'
 
 class CostCenterMatcher(object):
-    def __init__(self, connection):
+    def __init__(self, connection, config_provider):
         self.log = logging.getLogger('CostCenterMatcher')
-        cost_center_inboxes = connection.filter_inboxes(lambda inbox: inbox.startswith('"costcenter/'))
+        cost_center_inboxes = connection.filter_inboxes(lambda inbox: inbox.startswith(config_provider.get('labels', 'costcenter')))
         self.log.info('pre determining messages for [%d] cost centers...' % len(cost_center_inboxes))
         self.costcenters = {}
         for inbox in cost_center_inboxes:
@@ -79,8 +79,9 @@ class CostCenterMatcher(object):
             raise Exception(msg)
 
 class EmailFilter(object):
-    def __init__(self):
+    def __init__(self, config_provider):
         self.log = logging.getLogger('EmailForwarder')
+        self.config_provider = config_provider
     def _accept(self, email):
         return 'it-agile' != email['categorized']['provider']
     def filter_candidates(self, emails):
@@ -88,8 +89,8 @@ class EmailFilter(object):
             if not self._accept(email):
                 self.log.warn('skipping own mail [%s]' % email['Subject'])
                 return
-            email.replace_header('FROM', 'christian.daehn@it-agile.de')
-            email.replace_header('TO', 'christian.daehn+moneypennytest@it-agile.de')
+            email.replace_header('FROM', self.config_provider.get('account', 'username'))
+            email.replace_header('TO', self.config_provider.get('account', 'destination'))
             categorized = email['categorized']
             categorized['intro'] = 'Fwd:'
             categorized['outro'] = '(was: %s)' % email['Subject']

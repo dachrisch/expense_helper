@@ -13,9 +13,10 @@ from os import path
 from mail.imap import ImapConnector
 from category import EmailCategorizerFactory, EmailFilter
 from mail.smtp import SmtpConnector
+import ConfigParser
 
-def fetch_expense_inboxes(connection):
-    return connection.filter_inboxes(lambda inbox: inbox.startswith('"spesen/'))
+def fetch_expense_inboxes(connection, config_provider):
+    return connection.filter_inboxes(lambda inbox: inbox.startswith(config_provider.get('labels', 'expense')))
 
 def _checked_load_logging_config(config_path):
     expanded_config_path = path.expanduser(config_path)
@@ -45,23 +46,27 @@ class ExpenseHelper(object):
                     imap_factory = ImapConnector.connector_for, 
                     password_provider = CommandlinePasswordProvier.password, 
                     confirmation_provider = CommandlineConfirmationProvier.confirm, 
-                    smtp_factory = SmtpConnector.connector_for
+                    smtp_factory = SmtpConnector.connector_for,
+                    config_provider = ConfigParser.ConfigParser()
                 ):
         self.imap_factory = imap_factory
         self.password_provider = password_provider
         self.confirmation_provider = confirmation_provider
         self.smtp_factory = smtp_factory
+        self.config_provider = config_provider
 
     def run(self):
         log = logging.getLogger('main')
-    
-        username = 'christian.daehn@it-agile.de'
-        password = self.password_provider(username)
-        imap_connection = self.imap_factory('imap.googlemail.com')._login(username, password)
         
-        email_categorizer = EmailCategorizerFactory.create(imap_connection)
+        self.config_provider.read('expense.ini')
     
-        expense_inboxes = fetch_expense_inboxes(imap_connection)
+        username = self.config_provider.get('mail', 'username')
+        password = self.password_provider(username)
+        imap_connection = self.imap_factory(self.config_provider.get('mail', 'imap_server'))._login(username, password)
+        
+        email_categorizer = EmailCategorizerFactory.create(imap_connection, self.config_provider)
+    
+        expense_inboxes = fetch_expense_inboxes(imap_connection, self.config_provider)
     
         categorized_emails = []
         for inbox in expense_inboxes:
@@ -71,11 +76,11 @@ class ExpenseHelper(object):
         imap_connection.close()
         log.info('categorized [%d] emails...now forwarding...' % len(categorized_emails))
         
-        forward_candidates = EmailFilter().filter_candidates(categorized_emails)
+        forward_candidates = EmailFilter(self.config_provider).filter_candidates(categorized_emails)
         
         answer = self.confirmation_provider(forward_candidates)
         if answer.lower() in ('j', 'y'):
-            smtp = self.smtp_factory('smtp.googlemail.com')._login(username, password)
+            smtp = self.smtp_factory(self.config_provider.get('mail', 'smtp_server'))._login(username, password)
             for email in forward_candidates:
                 smtp.email(email)
             smtp.logout()
