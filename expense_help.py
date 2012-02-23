@@ -7,7 +7,6 @@ Created on Feb 23, 2012
 @author: cda
 '''
 import getpass
-import logging
 import logging.config
 import sys
 from os import path
@@ -52,6 +51,7 @@ class ExpenseHelper(object):
         self.password_provider = password_provider
         self.confirmation_provider = confirmation_provider
         self.smtp_factory = smtp_factory
+
     def run(self):
         log = logging.getLogger('main')
     

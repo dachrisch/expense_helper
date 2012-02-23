@@ -57,10 +57,10 @@ def test_smtp_factory(server):
     return DummySmtpConnector()
 
 class ExpenseHelperTest(unittest.TestCase):
-    def xtest_run(self):
+    def test_run(self):
         ExpenseHelper(imap_factory = test_imap_factory, password_provider = lambda x: x, confirmation_provider = lambda x: 'y', smtp_factory = test_smtp_factory).run()
     
-    def xtest_categorize_email(self):
+    def test_categorize_email(self):
         email_categorizer = EmailCategorizerFactory.create(DummyImapConnector())
         categorized_emails = email_categorizer.categorize('spesen/KKAR', (dummy_mail(), ))
         assert 1 == len(categorized_emails), categorized_emails
@@ -72,5 +72,5 @@ class ExpenseHelperTest(unittest.TestCase):
             assert 'Fwd: K10 KKAR here 02.03.2012 (was: foobar2)' == c['Subject'], c['Subject']
         
 if __name__ == '__main__':
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
     unittest.main()
