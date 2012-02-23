@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 '''
 Created on Feb 23, 2012
 
@@ -8,16 +11,9 @@ import logging
 import logging.config
 import sys
 from mail.imap import connector_for
-from email.header import decode_header
+from category import EmailCategorizer
 
-def remove_encoding(text):
-    texts_with_charsets = decode_header(text)
-    decoded_text = ''
-    for twc in texts_with_charsets:
-        decoded_text += twc[0]
-    return decoded_text
-
-
+    
 def main():
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
@@ -28,11 +24,10 @@ def main():
     connection._login(username, password)
     
     expense_inboxes = connection.filter_inboxes(lambda inbox: inbox.startswith('"spesen/'))
-    print(expense_inboxes)
     
     for inbox in expense_inboxes:
         emails = connection.read_from(inbox)
-        print(map(lambda x: remove_encoding(x['Subject']), emails))
+        EmailCategorizer().categorize(inbox, emails)
 
     connection.close()
 

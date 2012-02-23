@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 '''
 Created on Feb 23, 2012
 
@@ -33,13 +36,11 @@ class ImapConnector(object):
         return uids
 
     def __fetch_emails(self, uids):
-        emails = []
         for uid in uids:
-            response, rfc822_mail = self.imap.uid('fetch', uid, '(RFC822)')
+            response, rfc822_mail = self.imap.uid('fetch', uid, '(BODY[HEADER.FIELDS (DATE SUBJECT FROM Message-ID)])')
             assert response == 'OK', response
-            emails.append(email.message_from_string(rfc822_mail[0][1]))
+            yield email.message_from_string(rfc822_mail[0][1])
             
-        return emails
     
     def read_from(self, inbox):
         self.imap.select(inbox, readonly = True)
@@ -49,7 +50,7 @@ class ImapConnector(object):
         self.log.info('reading [%d] mails from [%s]' % (len(uids), inbox))        
         self.log.debug('processing %s' % (uids))
         
-        emails = self.__fetch_emails(uids)        
+        emails = self.__fetch_emails(uids)
         return emails
     
     def close(self):
