@@ -12,7 +12,7 @@ import logging.config
 import sys
 from os import path
 from mail.imap import ImapConnector
-from category import EmailCategorizerFactory
+from category import EmailCategorizerFactory, EmailFilter
 from mail.smtp import SmtpConnector
 
 def fetch_expense_inboxes(connection):
@@ -39,9 +39,15 @@ class CommandlineConfirmationProvier(object):
 
 def main():
     ExpenseHelper().run()
-
+    
 class ExpenseHelper(object):
-    def __init__(self, imap_factory = ImapConnector.connector_for, password_provider = CommandlinePasswordProvier.password, confirmation_provider = CommandlineConfirmationProvier.confirm, smtp_factory = SmtpConnector.connector_for):
+    def __init__(
+                    self, 
+                    imap_factory = ImapConnector.connector_for, 
+                    password_provider = CommandlinePasswordProvier.password, 
+                    confirmation_provider = CommandlineConfirmationProvier.confirm, 
+                    smtp_factory = SmtpConnector.connector_for
+                ):
         self.imap_factory = imap_factory
         self.password_provider = password_provider
         self.confirmation_provider = confirmation_provider
@@ -65,19 +71,7 @@ class ExpenseHelper(object):
         imap_connection.close()
         log.info('categorized [%d] emails...now forwarding...' % len(categorized_emails))
         
-        forward_candidates = []
-        for categorized_email in categorized_emails:
-            if 'it-agile' == categorized_email['categorized']['provider']:
-                log.warn('skipping own mail [%s]' % categorized_email['Subject'])
-                continue
-            categorized_email.replace_header('FROM', 'christian.daehn@it-agile.de')
-            categorized_email.replace_header('TO', 'christian.daehn+moneypennytest@it-agile.de')
-            categorized = categorized_email['categorized']
-            categorized['intro'] = 'Fwd:'
-            categorized['outro'] = '(was: %s)' % categorized_email['Subject']
-            categorized_email.replace_header('Subject', '%(intro)s %(costcenter)s %(payment_type)s %(provider)s %(order_date)s %(outro)s' % categorized)
-            del categorized_email['categorized']
-            forward_candidates.append(categorized_email)
+        forward_candidates = EmailFilter().filter_candidates(categorized_emails)
         
         answer = self.confirmation_provider(forward_candidates)
         if answer.lower() in ('j', 'y'):

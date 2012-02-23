@@ -77,3 +77,22 @@ class CostCenterMatcher(object):
             msg = 'message [%(Subject)s] with ID [%(Message-ID)s] has no cost center assigned.' % email
             msg += ' Available cost message ids: %s' % '\n'.join(self.costcenters.keys())
             raise Exception(msg)
+
+class EmailFilter(object):
+    def __init__(self):
+        self.log = logging.getLogger('EmailForwarder')
+    def _accept(self, email):
+        return 'it-agile' != email['categorized']['provider']
+    def filter_candidates(self, emails):
+        for email in emails:
+            if not self._accept(email):
+                self.log.warn('skipping own mail [%s]' % email['Subject'])
+                return
+            email.replace_header('FROM', 'christian.daehn@it-agile.de')
+            email.replace_header('TO', 'christian.daehn+moneypennytest@it-agile.de')
+            categorized = email['categorized']
+            categorized['intro'] = 'Fwd:'
+            categorized['outro'] = '(was: %s)' % email['Subject']
+            email.replace_header('Subject', '%(intro)s %(costcenter)s %(payment_type)s %(provider)s %(order_date)s %(outro)s' % categorized)
+            del email['categorized']
+            yield email
