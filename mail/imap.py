@@ -37,38 +37,36 @@ class ImapConnector(object):
         uids = uids_data[0].split()
         return uids
 
-    def __fetch_emails(self, uids):
+    def __fetch_emails(self, uids, fetch_options):
         for uid in uids:
-            response, rfc822_mail = self.imap.uid('fetch', uid, '(BODY[HEADER.FIELDS (DATE SUBJECT FROM Message-ID)])')
+            response, rfc822_mail = self.imap.uid('fetch', uid, fetch_options)
             assert response == 'OK', response
             parsed_email = email.message_from_string(rfc822_mail[0][1])
-            yield {
-                   'Subject' : self.__remove_encoding(parsed_email['Subject']),
-                   'DATE' : parsed_email['DATE'],
-                   'FROM' : parsed_email['FROM'],
-                   'Message-ID' : parsed_email['Message-ID'],
-                   }
+            if 'Subject' in parsed_email.keys():
+                parsed_email.replace_header('Subject', self.__remove_encoding(parsed_email['Subject']))
+            yield parsed_email
             
     def __remove_encoding(self, text):
         texts_with_charsets = decode_header(text)
         decoded_text = ''.join([ unicode(t[0], t[1] or 'ASCII') for t in texts_with_charsets ])
         return decoded_text.encode('utf-8')
 
-    def read_from(self, inbox):
+    def read_from(self, inbox, fetch_options = '(BODY[HEADER.FIELDS (DATE SUBJECT FROM Message-ID)])'):
         self.imap.select(inbox, readonly = True)
 
         uids = self.__search_uids()
         
-        self.log.info('reading [%d] mails from [%s]' % (len(uids), inbox))        
+        self.log.debug('reading [%d] mails from [%s]' % (len(uids), inbox))        
         self.log.debug('processing %s' % (uids))
         
-        emails = self.__fetch_emails(uids)
+        emails = self.__fetch_emails(uids, fetch_options)
         return emails
     
     def close(self):
         self.imap.close()
 
-def connector_for(server):
-    log = logging.getLogger('ImapConnectorFactory')
-    log.info('connecting to server [%s]...' % server)
-    return ImapConnector(imaplib.IMAP4_SSL(server, 993))
+    @staticmethod
+    def connector_for(server):
+        log = logging.getLogger('ImapConnectorFactory')
+        log.info('connecting to server [%s]...' % server)
+        return ImapConnector(imaplib.IMAP4_SSL(server, 993))

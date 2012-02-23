@@ -11,7 +11,7 @@ import re
 import logging
 
 def extract_nested_inbox(inbox):
-    return inbox.split('/')[-1]
+    return inbox.split('/')[-1].replace('"', '').replace(' ', '')
     
 class EmailCategorizerFactory(object):
     @staticmethod
@@ -26,16 +26,15 @@ class EmailCategorizer(object):
         return [self.__categorize(inbox, email) for email in emails]
 
     def __categorize(self, inbox, email):
-        subject = email['Subject']
-        categorized = {
+        email['categorized'] = {
                 'payment_type' : extract_nested_inbox(inbox),
                 'order_date' : self.__parse_date(email['DATE']),
                 'provider' : self.__parse_provider(email),
-                'cost_center' : self.costcenter_matcher.costcenter_for(email),
-                'subject' : subject
+                'costcenter' : self.costcenter_matcher.costcenter_for(email),
+                'email' : email
                 }
-        self.log.info('categorized [%s] as: %s' % (subject, categorized))
-        return categorized
+        self.log.info('categorized [%(Subject)s] as: %(categorized)s' % (email))
+        return email
     
     def __parse_date(self, send_date_rfc_2822):
         import time
@@ -65,14 +64,16 @@ class CostCenterMatcher(object):
         self.log.info('pre determining messages for [%d] cost centers...' % len(cost_center_inboxes))
         self.costcenters = {}
         for inbox in cost_center_inboxes:
-            emails = connection.read_from(inbox)
+            emails = connection.read_from(inbox, '(BODY[HEADER.FIELDS (Message-ID)])')
             for email in emails:
-                self.costcenters[email['Message-ID']] = extract_nested_inbox(inbox)
+                self.costcenters[email['Message-ID'].strip()] = extract_nested_inbox(inbox)
         self.log.debug('determined cost centers: %s' % self.costcenters)
 
     def costcenter_for(self, email):
-        m_id = email['Message-ID']
+        m_id = email['Message-ID'].strip()
         if m_id in self.costcenters.keys():
             return self.costcenters[m_id]
         else:
-            raise Exception('message [%(Subject)s] with ID [%(Message-ID)s] has no cost center assigned' % email)
+            msg = 'message [%(Subject)s] with ID [%(Message-ID)s] has no cost center assigned.' % email
+            msg += ' Available cost message ids: %s' % '\n'.join(self.costcenters.keys())
+            raise Exception(msg)
