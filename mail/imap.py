@@ -10,6 +10,8 @@ import logging
 import email
 from email.header import decode_header
 import imaplib
+import re
+import shlex
 
 class ImapConnector(object):
     def __init__(self, imap):
@@ -42,17 +44,34 @@ class ImapConnector(object):
             response, rfc822_mail = self.imap.uid('fetch', uid, fetch_options)
             assert response == 'OK', response
             parsed_email = email.message_from_string(rfc822_mail[0][1])
-            if 'Subject' in parsed_email.keys():
-                parsed_email.replace_header('Subject', self.__remove_encoding(parsed_email['Subject']))
+            self.__store_uid(parsed_email, uid)
+            self.__restore_subject(parsed_email)
+            self.__fetch_labels(parsed_email)
             yield parsed_email
-            
+
+    def __store_uid(self, email, uid):
+        email['UID'] = uid
+
+    def __restore_subject(self, email):
+        if 'Subject' in email.keys():
+            email.replace_header('Subject', self.__remove_encoding(email['Subject']))
+
+    def __fetch_labels(self, email):
+        assert email['UID']
+        response, label_data = self.imap.uid('FETCH', email['UID'], '(X-GM-LABELS)')
+        assert response == 'OK', response
+        label_pattern = re.compile('\d+ \(X-GM-LABELS \((?P<labels>.*)\) UID \d+\)')
+        m = label_pattern.match(label_data[0])
+        if m:
+            email['labels'] = shlex.split(m.group('labels'))
+        
     def __remove_encoding(self, text):
         texts_with_charsets = decode_header(text)
         decoded_text = ''.join([ unicode(t[0], t[1] or 'ASCII') for t in texts_with_charsets ])
         return decoded_text.encode('utf-8')
 
-    def read_from(self, inbox, fetch_options = '(BODY[HEADER.FIELDS (DATE SUBJECT FROM Message-ID)])'):
-        self.imap.select(inbox, readonly = True)
+    def read_from(self, inbox, fetch_options = '(BODY[HEADER.FIELDS (DATE SUBJECT FROM)])'):
+        self.imap.select(inbox, readonly = False)
 
         uids = self.__search_uids()
         
@@ -61,6 +80,11 @@ class ImapConnector(object):
         
         emails = self.__fetch_emails(uids, fetch_options)
         return emails
+    
+    def add_label(self, email, label):
+        self.log.debug('%s %s %s %s' % ('STORE', email['UID'], '+X-GM-LABELS', label))
+        response, data = self.imap.uid('STORE', email['UID'], '+X-GM-LABELS', label)
+        assert response == 'OK', response
     
     def close(self):
         self.imap.close()

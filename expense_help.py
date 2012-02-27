@@ -10,13 +10,14 @@ import getpass
 import logging.config
 import sys
 from os import path
+from time import gmtime, strftime
 from mail.imap import ImapConnector
 from category import EmailCategorizerFactory, EmailFilter
 from mail.smtp import SmtpConnector
 import ConfigParser
 
 def fetch_expense_inboxes(connection, config_provider):
-    return connection.filter_inboxes(lambda inbox: inbox.startswith(config_provider.get('labels', 'expense')))
+    return connection.filter_inboxes(lambda inbox: inbox.startswith('"' + config_provider.get('labels', 'expense')))
 
 def _checked_load_logging_config(config_path):
     expanded_config_path = path.expanduser(config_path)
@@ -29,13 +30,12 @@ class CommandlinePasswordProvier(object):
     def password(username):
         return getpass.getpass('password for [%s]: ' % username)
 
-class CommandlineConfirmationProvier(object):
-    @staticmethod
-    def confirm(emails):
-        log = logging.getLogger('CommandlineConfirmationProvier')
-        log.warn('about to forward [%d] emails:' % len(emails))
-        log.info('\n'.join(map(lambda x: x['Subject'], emails)))
-        return raw_input("continue?: ")
+
+def confirm(emails):
+    log = logging.getLogger('CommandlineConfirmationProvier')
+    log.warn('about to forward [%d] emails:' % len(emails))
+    log.info('\n'.join(map(lambda x: x['Subject'], emails)))
+    return raw_input("continue?: ")
 
 def main():
     ExpenseHelper().run()
@@ -45,7 +45,7 @@ class ExpenseHelper(object):
                     self, 
                     imap_factory = ImapConnector.connector_for, 
                     password_provider = CommandlinePasswordProvier.password, 
-                    confirmation_provider = CommandlineConfirmationProvier.confirm, 
+                    confirmation_provider = confirm, 
                     smtp_factory = SmtpConnector.connector_for,
                     config_provider = ConfigParser.ConfigParser()
                 ):
@@ -64,32 +64,33 @@ class ExpenseHelper(object):
         password = self.password_provider(username)
         imap_connection = self.imap_factory(self.config_provider.get('mail', 'imap_server'))._login(username, password)
         
-        email_categorizer = EmailCategorizerFactory.create(imap_connection, self.config_provider)
+        email_categorizer = EmailCategorizerFactory.create(self.config_provider)
     
         expense_inboxes = fetch_expense_inboxes(imap_connection, self.config_provider)
     
         categorized_emails = []
         for inbox in expense_inboxes:
-            emails = imap_connection.read_from(inbox, '(RFC822)')
+            emails = imap_connection.read_from(inbox)#, '(RFC822)')
             categorized_emails.extend(email_categorizer.categorize(inbox, emails))
     
-        imap_connection.close()
         log.info('categorized [%d] emails...now forwarding...' % len(categorized_emails))
         
         forward_candidates = EmailFilter(self.config_provider).filter_candidates(categorized_emails)
         
         answer = self.confirmation_provider(forward_candidates)
         if answer.lower() in ('j', 'y'):
-            smtp = self.smtp_factory(self.config_provider.get('mail', 'smtp_server'))._login(username, password)
+            smtp_connection = self.smtp_factory(self.config_provider.get('mail', 'smtp_server'))._login(username, password)
             for email in forward_candidates:
-                smtp.email(email)
-            smtp.logout()
+                imap_connection.add_label(email, 'delivered')
+                smtp_connection.email(email)
+            smtp_connection.logout()
         else:
             log.warn('doing nothing. bye')
+        imap_connection.close()
 
 if __name__ == '__main__':
     try:
-        _checked_load_logging_config("~/.python/logging.conf")
+        _checked_load_logging_config("~/.python/logging_debug.conf")
     except:
         logging.basicConfig(stream=sys.stdout, level=logging.WARN)
     main()

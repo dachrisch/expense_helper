@@ -18,8 +18,8 @@ def extract_nested_inbox(inbox):
     
 class EmailCategorizerFactory(object):
     @staticmethod
-    def create(connection, config_provider):
-        return EmailCategorizer(CostCenterMatcher(connection, config_provider))
+    def create(config_provider):
+        return EmailCategorizer(CostCenterMatcher(config_provider))
 
 class EmailCategorizer(object):
     def __init__(self, costcenter_matcher):
@@ -57,43 +57,39 @@ class EmailCategorizer(object):
         return 'UNKNOWN'
 
 class CostCenterMatcher(object):
-    def __init__(self, connection, config_provider):
+    def __init__(self, config_provider):
         self.log = logging.getLogger('CostCenterMatcher')
-        cost_center_inboxes = connection.filter_inboxes(lambda inbox: inbox.startswith(config_provider.get('labels', 'costcenter')))
-        self.log.info('pre determining messages for [%d] cost centers...' % len(cost_center_inboxes))
-        self.costcenters = {}
-        for inbox in cost_center_inboxes:
-            emails = connection.read_from(inbox, '(BODY[HEADER.FIELDS (Message-ID)])')
-            for email in emails:
-                self.log.debug('determining cost center for [%s]' % email)
-                self.costcenters[email['Message-ID'].strip()] = extract_nested_inbox(inbox)
-        self.log.debug('determined cost centers: %s' % self.costcenters)
+        self.costcenter_inbox = config_provider.get('labels', 'costcenter')
 
     def costcenter_for(self, email):
-        m_id = email['Message-ID'].strip()
-        if m_id in self.costcenters.keys():
-            return self.costcenters[m_id]
-        else:
-            msg = 'message [%(Subject)s] with ID [%(Message-ID)s] has no cost center assigned.' % email
-            msg += ' Available cost message ids: %s' % '\n'.join(self.costcenters.keys())
-            raise Exception(msg)
+        labels = email['labels']
+        costcenter_labels = map(lambda label: extract_nested_inbox(label), filter(lambda label: label.startswith(self.costcenter_inbox), labels))
+        if len(costcenter_labels) > 1:
+            raise Exception('only one costcenter assignment allowed, but found [%d]: %s' % (len(costcenter_labels), costcenter_labels))
+        return costcenter_labels[0]
 
 class EmailFilter(object):
     def __init__(self, config_provider):
         self.log = logging.getLogger('EmailForwarder')
         self.config_provider = config_provider
     def _accept(self, email):
-        return 'it-agile' != email['categorized']['provider']
+        accept = 'it-agile' != email['categorized']['provider']
+        return accept
     def filter_candidates(self, emails):
+        candidate_emails = []
         for email in emails:
             if not self._accept(email):
-                self.log.warn('skipping own mail [%s]' % email['Subject'])
-                return
+                self.log.warn('skipping mail [%s]' % email['Subject'])
+                continue
             email.replace_header('FROM', self.config_provider.get('account', 'username'))
-            email.replace_header('TO', self.config_provider.get('account', 'destination'))
+            if 'TO' in email.keys():
+                email.replace_header('TO', self.config_provider.get('account', 'destination'))
+            else:
+                email.add_header('TO', self.config_provider.get('account', 'destination'))
             categorized = email['categorized']
             categorized['intro'] = 'Fwd:'
             categorized['outro'] = '(was: %s)' % email['Subject']
             email.replace_header('Subject', '%(intro)s %(costcenter)s %(payment_type)s %(provider)s %(order_date)s %(outro)s' % categorized)
             del email['categorized']
-            yield email
+            candidate_emails.append(email)
+        return candidate_emails
