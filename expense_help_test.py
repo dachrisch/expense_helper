@@ -13,6 +13,12 @@ import re
 import shlex
 from mail.imap import ImapConnector
 
+class DefaultConfiguration(object):
+    def get(self, section, property):
+        if 'labels' == section:
+            if property == 'costcenter':
+                return 'costcenter/'
+
 class DummyEmail(dict):
     def replace_header(self, header, value):
         self[header] = value
@@ -62,8 +68,7 @@ class ExpenseHelperTest(unittest.TestCase):
         ExpenseHelper(imap_factory = dummy_imap_factory, password_provider = lambda x: x, confirmation_provider = lambda x: 'y', smtp_factory = dummy_smtp_factory).run()
     
     def test_categorize_email(self):
-        cp = ConfigParser.ConfigParser()
-        cp.read('expense.ini')
+        cp = DefaultConfiguration()
         email_categorizer = EmailCategorizerFactory.create(cp)
         categorized_emails = email_categorizer.categorize('spesen/KKAR', (dummy_mail(), ))
         assert 1 == len(categorized_emails), categorized_emails
