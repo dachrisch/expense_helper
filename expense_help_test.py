@@ -65,11 +65,15 @@ def dummy_smtp_factory(server):
 
 class ExpenseHelperTest(unittest.TestCase):
     def test_run(self):
-        ExpenseHelper(imap_factory = dummy_imap_factory, password_provider = lambda x: x, confirmation_provider = lambda x: 'y', smtp_factory = dummy_smtp_factory).run()
+        ExpenseHelper(  
+                      imap_factory = dummy_imap_factory, 
+                      password_provider = lambda x: x, 
+                      confirmation_provider = lambda x: 'y', 
+                      smtp_factory = dummy_smtp_factory,
+                      config_provider = DefaultConfiguration()).run()
     
     def test_categorize_email(self):
-        cp = DefaultConfiguration()
-        email_categorizer = EmailCategorizerFactory.create(cp)
+        email_categorizer = EmailCategorizerFactory.create(DefaultConfiguration())
         categorized_emails = email_categorizer.categorize('spesen/KKAR', (dummy_mail(), ))
         assert 1 == len(categorized_emails), categorized_emails
         assert 'KKAR' == categorized_emails[0]['categorized']['payment_type'], categorized_emails[0]['categorized']
