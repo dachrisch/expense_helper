@@ -18,6 +18,10 @@ class DefaultConfiguration(object):
         if 'labels' == section:
             if property == 'costcenter':
                 return 'costcenter/'
+            if property == 'expense':
+                return 'sepsen/'
+    def read(self, file):
+        assert file == 'expense.ini'
 
 class DummyEmail(dict):
     def replace_header(self, header, value):
