@@ -7,7 +7,7 @@ import unittest
 import logging
 import sys
 from expense_help import ExpenseHelper
-from category import EmailCategorizerFactory, EmailFilter
+from category import EmailCategorizerFactory, EmailFilter, CostCenterMatcher
 import ConfigParser
 import re
 import shlex
@@ -99,6 +99,10 @@ class ExpenseHelperTest(unittest.TestCase):
         assert m, label_data[0]
         assert m.group('labels') == '"\\\\Sent" "cost center" spesen travel spesen/KKJC', m.group('labels')
         assert shlex.split(m.group('labels')) == ['\\Sent', 'cost center', 'spesen', 'travel', 'spesen/KKJC'], shlex.split(m.group('labels'))
+    def test_no_cost_center_assigned(self):
+        mail = dummy_mail()
+        mail['labels'] = 'costcenter'
+        self.assertRaisesRegexp(Exception, 'mail has no costcenter \[costcenter\/<costcenter>\] assigned', lambda: CostCenterMatcher(DefaultConfiguration()).costcenter_for(mail))
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)
