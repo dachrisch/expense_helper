@@ -44,6 +44,8 @@ def dummy_mail():
 class DummySmtp(object):
     def close(self):
         pass
+    def quit(self):
+        pass
     def ehlo(self):
         pass
     def starttls(self):
