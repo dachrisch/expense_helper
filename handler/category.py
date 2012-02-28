@@ -58,7 +58,7 @@ class EmailCategorizer(object):
 class CostCenterMatcher(object):
     def __init__(self, config_provider):
         self.log = logging.getLogger('CostCenterMatcher')
-        self.costcenter_inbox = config_provider.get('labels', 'costcenter')
+        self.costcenter_inbox = config_provider.costcenter_label
 
     def costcenter_for(self, email):
         labels = email['labels']

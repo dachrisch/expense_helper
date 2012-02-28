@@ -7,22 +7,24 @@ import unittest
 import logging
 import sys
 from expense_help import ExpenseHelper
-from category import EmailCategorizerFactory, CostCenterMatcher
-from filter import EmailFilterHandler, EmailCleanup
+from config import ExpenseConfigParser
+from handler.category import EmailCategorizerFactory, CostCenterMatcher
+from handler.filter import EmailFilterHandler, EmailCleanup
 import re
 import shlex
 from mail.imap import ImapConnector
 from mail.smtp import SmtpConnector
+from ConfigParser import ConfigParser
 
 class DefaultConfiguration(object):
-    def get(self, section, property):
-        if 'labels' == section:
-            if property == 'costcenter':
-                return 'costcenter/'
-            if property == 'expense':
-                return 'sepsen/'
-    def read(self, file):
-        assert file == 'expense.ini'
+    def __init__(self):
+        self.costcenter_label = 'costcenter/'
+        self.expense_label = 'expense/'
+        self.username = 'foo'
+        self.imap_server = 'localhost'
+        self.smtp_server = 'localhost'
+        self.sender = 'me'
+        self.receiver = 'me'
 
 class DummyEmail(dict):
     def replace_header(self, header, value):
@@ -110,6 +112,20 @@ class ExpenseHelperTest(unittest.TestCase):
         mail = dummy_mail()
         mail['labels'] = 'costcenter'
         self.assertRaisesRegexp(Exception, 'mail has no costcenter \[costcenter\/<costcenter>\] assigned', lambda: CostCenterMatcher(DefaultConfiguration()).costcenter_for(mail))
+    def test_config_parser(self):
+        e = ExpenseConfigParser(None, None)
+        assert hasattr(e, 'username'), e.__dict__
+        assert hasattr(e, 'smtp_server'), e.__dict__
+        assert hasattr(e, 'imap_server'), e.__dict__
+        assert hasattr(e, 'receiver'), e.__dict__
+        assert hasattr(e, 'costcenter_label'), e.__dict__
+        assert hasattr(e, 'expense_label'), e.__dict__
+    def test_store_and_load_config(self):
+        from tempfile import NamedTemporaryFile
+        f = NamedTemporaryFile(delete = True)
+        e = ExpenseConfigParser(ConfigParser(), f.name)
+        e.store()
+        e.load()
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)

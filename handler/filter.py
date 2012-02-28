@@ -13,9 +13,9 @@ class EmailFilter(object):
         pass
     def _log(self, email, result):
         if result:
-            self.log.debug('filter [%s] passed - accepting email [%s]' % (self, email['Subject']))
+            self.log.debug('PASS - [%s] - accepting email [%s]' % (self, email['Subject']))
         else:
-            self.log.info('filter [%s] failed - rejecting email [%s]' % (self, email['Subject']))
+            self.log.info('FAIL - [%s] - rejecting email [%s]' % (self, email['Subject']))
         return result
 
 class RejectingProviderFilter(EmailFilter):

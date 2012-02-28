@@ -6,18 +6,21 @@ Created on Feb 23, 2012
 
 @author: cda
 '''
-import getpass
 import logging.config
 import sys
 from os import path
 from mail.imap import ImapConnector
-from category import EmailCategorizerFactory
-from filter import EmailFilterHandler, EmailCleanup
+from handler.category import EmailCategorizerFactory
+from handler.filter import EmailFilterHandler, EmailCleanup
 from mail.smtp import SmtpConnector
-import ConfigParser
+from ConfigParser import ConfigParser
+from optparse import OptionParser
+from config import ExpenseConfigParser
+from handler.provider import CommandlinePasswordProvier,\
+    CommandlineConfirmationProvier
 
 def fetch_expense_inboxes(connection, config_provider):
-    return connection.filter_inboxes(lambda inbox: inbox.startswith('"' + config_provider.get('labels', 'expense')))
+    return connection.filter_inboxes(lambda inbox: inbox.startswith('"' + config_provider.expense_label))
 
 def _checked_load_logging_config(config_path):
     expanded_config_path = path.expanduser(config_path)
@@ -25,37 +28,38 @@ def _checked_load_logging_config(config_path):
         raise Exception("failed to locate a logging configuration at [%s]. please check the location" % expanded_config_path)
     logging.config.fileConfig(expanded_config_path)
 
-class CommandlinePasswordProvier(object):
-    @staticmethod
-    def password(username):
-        return getpass.getpass('password for [%s]: ' % username)
-
-
-def confirm(emails):
-    log = logging.getLogger('CommandlineConfirmationProvier')
-    if len(emails):
-        log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['To']))
-        log.info('\n'.join(map(lambda x: x['Subject'], emails)))
-        return raw_input("continue?: ").lower() in ('j', 'y')
-    else:
-        log.warn('all mails rejected.')
-        return False
-
 def main():
-    try:
+    parser = OptionParser()
+    parser.add_option("-i", "--ini-file", dest="ini_file",
+                      help="read configuration from FILE (default: %default)", metavar="FILE", default="expense.ini")
+    parser.add_option("-v", "--verbose",
+                      action="count", dest="verbose",
+                      help="print status messages to stdout more verbose", default=1)
+    parser.add_option("-c", "--create-default-config", dest="create_default_config", action="store_true",
+                      help="create a default config file", default=False)
+
+    (options, args) = parser.parse_args()
+    if options.verbose > 1:
+        _checked_load_logging_config("~/.python/logging_debug.conf")
+    elif options.verbose:
         _checked_load_logging_config("~/.python/logging.conf")
-    except:
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    ExpenseHelper().run()
+    else:
+        logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+        
+    config_parser = ExpenseConfigParser(ConfigParser(), options.ini_file)
+    if options.create_default_config:
+        config_parser.store()
+    else:
+        ExpenseHelper(config_provider = config_parser.load()).run()
     
 class ExpenseHelper(object):
     def __init__(
                     self, 
+                    config_provider,
                     imap_factory = ImapConnector.connector_for, 
                     password_provider = CommandlinePasswordProvier.password, 
-                    confirmation_provider = confirm, 
-                    smtp_factory = SmtpConnector.connector_for,
-                    config_provider = ConfigParser.ConfigParser()
+                    confirmation_provider = CommandlineConfirmationProvier.confirm, 
+                    smtp_factory = SmtpConnector.connector_for
                 ):
         self.imap_factory = imap_factory
         self.password_provider = password_provider
@@ -64,13 +68,12 @@ class ExpenseHelper(object):
         self.config_provider = config_provider
 
     def run(self):
-        log = logging.getLogger('main')
-        
-        self.config_provider.read('expense.ini')
     
-        username = self.config_provider.get('mail', 'username')
+        log = logging.getLogger('ExpenseHelper')
+        
+        username = self.config_provider.username
         password = self.password_provider(username)
-        with self.imap_factory(self.config_provider.get('mail', 'imap_server')).create_connection(username, password) as imap_connection:
+        with self.imap_factory(self.config_provider.imap_server).create_connection(username, password) as imap_connection:
         
             email_categorizer = EmailCategorizerFactory.create(self.config_provider)
         
@@ -83,12 +86,12 @@ class ExpenseHelper(object):
         
             log.info('categorized [%d] emails...now filtering...' % (len(categorized_emails)))
             
-            forward_candidates = map(EmailCleanup(self.config_provider.get('account', 'username'), self.config_provider.get('account', 'destination')).prepare_outbound, 
+            forward_candidates = map(EmailCleanup(self.config_provider.sender, self.config_provider.receiver).prepare_outbound, 
                                      filter(EmailFilterHandler(self.config_provider).filter_candidate, categorized_emails))
     
             answer = self.confirmation_provider(forward_candidates)
             if answer:
-                with self.smtp_factory(self.config_provider.get('mail', 'smtp_server')).create_connection(username, password) as smtp_connection:
+                with self.smtp_factory(self.config_provider.smtp_server).create_connection(username, password) as smtp_connection:
                     for email in forward_candidates:
                         smtp_connection.email(email)
                         imap_connection.add_label(email, 'delivered')
