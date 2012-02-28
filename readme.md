@@ -42,7 +42,9 @@ program usage
 	                        
 configuration
 -------------
+
 example:
+	
 	[mail]
 	username=<username>
 	imap_server=imap.googlemail.com
