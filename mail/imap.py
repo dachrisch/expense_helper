@@ -42,8 +42,8 @@ class ImapConnector(object):
         self.log.debug('filtered %s from available inboxes: %s' % (filtered_inboxes, available_inboxes))
         return filtered_inboxes
     
-    def __search_uids(self):
-        response, uids_data = self.imap.uid('search', None, '(X-GM-RAW "-label:delivered has:attachment")')
+    def __search_uids(self, gmail_query):
+        response, uids_data = self.imap.uid('search', None, '(X-GM-RAW "%s")' % gmail_query)
         assert response == 'OK', response
         uids = uids_data[0].split()
         return uids
@@ -79,10 +79,10 @@ class ImapConnector(object):
         decoded_text = ''.join([ unicode(t[0], t[1] or 'ASCII') for t in texts_with_charsets ])
         return decoded_text.encode('utf-8')
 
-    def read_from(self, inbox, fetch_options = '(BODY[HEADER.FIELDS (DATE SUBJECT FROM)])'):
+    def read_from(self, inbox, gmail_query, fetch_options = '(BODY[HEADER.FIELDS (DATE SUBJECT FROM)])'):
         self.imap.select(inbox, readonly = False)
 
-        uids = self.__search_uids()
+        uids = self.__search_uids(gmail_query)
         
         self.log.debug('reading [%d] mails from [%s]' % (len(uids), inbox))        
         self.log.debug('processing %s' % (uids))

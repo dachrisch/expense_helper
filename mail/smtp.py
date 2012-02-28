@@ -12,7 +12,7 @@ from contextlib import contextmanager
 class SmtpConnector(object):
     
     def __init__(self, smtp):
-        self.log = logging.getLogger('SmtpConnectorFactory')
+        self.log = logging.getLogger('SmtpConnector')
         self.smtp = smtp
 
     @contextmanager

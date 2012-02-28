@@ -16,8 +16,7 @@ from mail.smtp import SmtpConnector
 from ConfigParser import ConfigParser
 from optparse import OptionParser
 from config import ExpenseConfigParser
-from handler.provider import CommandlinePasswordProvier,\
-    CommandlineConfirmationProvier
+from handler.provider import CommandlinePasswordProvier, ConfirmationProvier
 
 def fetch_expense_inboxes(connection, config_provider):
     return connection.filter_inboxes(lambda inbox: inbox.startswith('"' + config_provider.expense_label))
@@ -37,6 +36,8 @@ def main():
                       help="print status messages to stdout more verbose", default=1)
     parser.add_option("-c", "--create-default-config", dest="create_default_config", action="store_true",
                       help="create a default config file", default=False)
+    parser.add_option("-y", "--yes", dest="require_confirm", action="store_false",
+                      help="create a default config file", default=True)
 
     (options, args) = parser.parse_args()
     if options.verbose > 1:
@@ -50,7 +51,8 @@ def main():
     if options.create_default_config:
         config_parser.store()
     else:
-        ExpenseHelper(config_provider = config_parser.load()).run()
+        ExpenseHelper(config_provider = config_parser.load(),
+                      confirmation_provider = options.require_confirm and ConfirmationProvier.from_commandline or ConfirmationProvier.yes).run()
     
 class ExpenseHelper(object):
     def __init__(
@@ -58,7 +60,7 @@ class ExpenseHelper(object):
                     config_provider,
                     imap_factory = ImapConnector.connector_for, 
                     password_provider = CommandlinePasswordProvier.password, 
-                    confirmation_provider = CommandlineConfirmationProvier.confirm, 
+                    confirmation_provider = ConfirmationProvier.from_commandline, 
                     smtp_factory = SmtpConnector.connector_for
                 ):
         self.imap_factory = imap_factory
@@ -81,7 +83,7 @@ class ExpenseHelper(object):
         
             categorized_emails = []
             for inbox in expense_inboxes:
-                emails = imap_connection.read_from(inbox, '(RFC822)')
+                emails = imap_connection.read_from(inbox, '(RFC822)', '-label:%s has:attachment' % self.config_provider.delivered_label)
                 categorized_emails.extend(email_categorizer.categorize(inbox, emails))
         
             log.info('categorized [%d] emails...now filtering...' % (len(categorized_emails)))
