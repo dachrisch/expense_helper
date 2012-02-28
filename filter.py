@@ -46,8 +46,8 @@ class HasAttachmentFilter(EmailFilter):
     @staticmethod
     def has_attachment(part):
         cd = part.get('Content-Disposition')
-        return cd is not None and cd.startswith('attachment') 
-        
+        return cd is not None and cd.startswith('attachment')
+    
 class EmailFilterHandler(object):
     def __init__(self, config_provider):
         self.log = logging.getLogger('EmailFilterHandler')
@@ -56,20 +56,16 @@ class EmailFilterHandler(object):
     def __add_filter(self):
         self._filters = (NotDeliveredFilter(), RejectingProviderFilter('it-agile'))
         
-    def _accept(self, email):
+    def filter_candidate(self, email):
         accept = True
         for _filter in self._filters:
             accept &= _filter.accept(email)
         return accept
-    def filter_candidates(self, emails):
-        candidate_emails = []
-        for email in filter(self._accept, emails):
-            self.__email_from(email, self.config_provider.get('account', 'username'))
-            self.__send_to(email, self.config_provider.get('account', 'destination'))
-            self.__create_subject(email)
-            self.__cleanup_email(email)
-            candidate_emails.append(email)
-        return candidate_emails
+
+class EmailCleanup(object):
+    def __init__(self, _from, to):
+        self._from = _from
+        self.to = to
     def __create_subject(self, email):
         categorized = email['categorized']
         categorized['intro'] = 'Fwd:'
@@ -85,3 +81,9 @@ class EmailFilterHandler(object):
             email.add_header('To', to)
     def __email_from(self, email, _from):
         email.replace_header('From', _from)
+    def prepare_outbound(self, email):
+        self.__email_from(email, self._from)
+        self.__send_to(email, self.to)
+        self.__create_subject(email)
+        self.__cleanup_email(email)
+        return email

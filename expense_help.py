@@ -12,7 +12,7 @@ import sys
 from os import path
 from mail.imap import ImapConnector
 from category import EmailCategorizerFactory
-from filter import EmailFilterHandler
+from filter import EmailFilterHandler, EmailCleanup
 from mail.smtp import SmtpConnector
 import ConfigParser
 
@@ -83,8 +83,9 @@ class ExpenseHelper(object):
         
             log.info('categorized [%d] emails...now filtering...' % (len(categorized_emails)))
             
-            forward_candidates = EmailFilterHandler(self.config_provider).filter_candidates(categorized_emails)
-            
+            forward_candidates = map(EmailCleanup(self.config_provider.get('account', 'username'), self.config_provider.get('account', 'destination')).prepare_outbound, 
+                                     filter(EmailFilterHandler(self.config_provider).filter_candidate, categorized_emails))
+    
             answer = self.confirmation_provider(forward_candidates)
             if answer:
                 with self.smtp_factory(self.config_provider.get('mail', 'smtp_server')).create_connection(username, password) as smtp_connection:
