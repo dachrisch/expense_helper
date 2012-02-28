@@ -5,15 +5,16 @@ help to forward emails appropriately labeled in Google Mail to accounting
 Gmail organisation
 ------------------
 
-	This program is using Gmail labels to mark emails for delivery and categorization.
-	
-	First, all mails which can be found in any nested inboxes under <expense>/ are fetched. Next, the email is categorized using:
-	- the send date, to determine the booking date
-	- the sender, to determine the booking provider (the domain part of the email is used)
-	- the nested label under <costcenter>, to determine the cost center
-	- the nested label under <expense>, to determine the payment type
-	
-	Example label structure:
+This program is using Gmail labels to mark emails for delivery and categorization.
+
+First, all mails which can be found in any nested inboxes under <expense>/ are fetched. Next, the email is categorized using:
+- the send date, to determine the booking date
+- the sender, to determine the booking provider (the domain part of the email is used)
+- the nested label under <costcenter>, to determine the cost center
+- the nested label under <expense>, to determine the payment type
+
+Example label structure:
+
 	costcenter
 	|---------/K10
 	           |--- email1 from airberlin.de send 22.2.2012
@@ -25,7 +26,7 @@ Gmail organisation
 	          /ELV
 	           |--- email2
 	           
-	 This will be categorized as [K10 KKJC airberlin 22.02.2012] and [K100 ELV bahn 23.01.2012]
+This will be categorized as [K10 KKJC airberlin 22.02.2012] and [K100 ELV bahn 23.01.2012]
 
 program usage
 -------------
