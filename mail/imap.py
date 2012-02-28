@@ -21,8 +21,9 @@ class ImapConnector(object):
         
     @contextmanager
     def create_connection(self, username, password):
+        self.__login(username, password)
         try:
-            yield self.__login(username, password)
+            yield self
         finally:
             self._close()
 
