@@ -12,13 +12,21 @@ from email.header import decode_header
 import imaplib
 import re
 import shlex
+from contextlib import contextmanager
 
 class ImapConnector(object):
     def __init__(self, imap):
         self.imap = imap
         self.log = logging.getLogger('ImapConnector')
         
-    def _login(self, username, password):
+    @contextmanager
+    def create_connection(self, username, password):
+        try:
+            yield self.__login(username, password)
+        finally:
+            self._close()
+
+    def __login(self, username, password):
         self.log.info('logging in [%s]' % username)
         self.imap.login(username, password)
         return self
@@ -86,7 +94,8 @@ class ImapConnector(object):
         response, data = self.imap.uid('COPY', email['UID'], label)
         assert response == 'OK', response
     
-    def close(self):
+    def _close(self):
+        print('logout')
         self.imap.close()
 
     @staticmethod

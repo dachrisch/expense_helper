@@ -66,31 +66,30 @@ class ExpenseHelper(object):
     
         username = self.config_provider.get('mail', 'username')
         password = self.password_provider(username)
-        imap_connection = self.imap_factory(self.config_provider.get('mail', 'imap_server'))._login(username, password)
+        with self.imap_factory(self.config_provider.get('mail', 'imap_server')).create_connection(username, password) as imap_connection:
         
-        email_categorizer = EmailCategorizerFactory.create(self.config_provider)
-    
-        expense_inboxes = fetch_expense_inboxes(imap_connection, self.config_provider)
-    
-        categorized_emails = []
-        for inbox in expense_inboxes:
-            emails = imap_connection.read_from(inbox, '(RFC822)')
-            categorized_emails.extend(email_categorizer.categorize(inbox, emails))
-    
-        log.info('categorized [%d] emails...now filtering...' % (len(categorized_emails)))
+            email_categorizer = EmailCategorizerFactory.create(self.config_provider)
         
-        forward_candidates = EmailFilterHandler(self.config_provider).filter_candidates(categorized_emails)
+            expense_inboxes = fetch_expense_inboxes(imap_connection, self.config_provider)
         
-        answer = self.confirmation_provider(forward_candidates)
-        if answer:
-            smtp_connection = self.smtp_factory(self.config_provider.get('mail', 'smtp_server'))._login(username, password)
-            for email in forward_candidates:
-                smtp_connection.email(email)
-                imap_connection.add_label(email, 'delivered')
-            smtp_connection.logout()
-        else:
-            log.warn('doing nothing. bye')
-        imap_connection.close()
+            categorized_emails = []
+            for inbox in expense_inboxes:
+                emails = imap_connection.read_from(inbox, '(RFC822)')
+                categorized_emails.extend(email_categorizer.categorize(inbox, emails))
+        
+            log.info('categorized [%d] emails...now filtering...' % (len(categorized_emails)))
+            
+            forward_candidates = EmailFilterHandler(self.config_provider).filter_candidates(categorized_emails)
+            
+            answer = self.confirmation_provider(forward_candidates)
+            if answer:
+                smtp_connection = self.smtp_factory(self.config_provider.get('mail', 'smtp_server'))._login(username, password)
+                for email in forward_candidates:
+                    smtp_connection.email(email)
+                    imap_connection.add_label(email, 'delivered')
+                smtp_connection.logout()
+            else:
+                log.warn('doing nothing. bye')
 
 if __name__ == '__main__':
     try:
