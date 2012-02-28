@@ -82,8 +82,8 @@ class ImapConnector(object):
         return emails
     
     def add_label(self, email, label):
-        self.log.debug('%s %s %s %s' % ('STORE', email['UID'], '+X-GM-LABELS', label))
-        response, data = self.imap.uid('STORE', email['UID'], '+X-GM-LABELS', label)
+        self.log.debug('%s %s %s' % ('COPY', email['UID'], label))
+        response, data = self.imap.uid('COPY', email['UID'], label)
         assert response == 'OK', response
     
     def close(self):

@@ -7,8 +7,8 @@ import unittest
 import logging
 import sys
 from expense_help import ExpenseHelper
-from category import EmailCategorizerFactory, EmailFilter, CostCenterMatcher
-import ConfigParser
+from category import EmailCategorizerFactory, CostCenterMatcher
+from filter import EmailFilterHandler
 import re
 import shlex
 from mail.imap import ImapConnector
@@ -28,6 +28,8 @@ class DummyEmail(dict):
         self[header] = value
     def add_header(self, header, value):
         self.replace_header(header, value)
+    def walk(self):
+        return (self,)
 
 def dummy_mail():
     email = DummyEmail()
@@ -89,7 +91,7 @@ class ExpenseHelperTest(unittest.TestCase):
                             'costcenter' : 'K10',
                             'payment_type' : 'KKAR',
                             'order_date' : '02.03.2012'}
-        candidates = EmailFilter(DummyConfigProvider()).filter_candidates((email, ))
+        candidates = EmailFilterHandler(DummyConfigProvider()).filter_candidates((email, ))
         for c in candidates:
             assert 'Fwd: K10 KKAR here 02.03.2012 (was: foobar2)' == c['Subject'], c['Subject']
     def test_parse_labels(self):

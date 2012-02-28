@@ -10,9 +10,9 @@ import getpass
 import logging.config
 import sys
 from os import path
-from time import gmtime, strftime
 from mail.imap import ImapConnector
-from category import EmailCategorizerFactory, EmailFilter
+from category import EmailCategorizerFactory
+from filter import EmailFilterHandler
 from mail.smtp import SmtpConnector
 import ConfigParser
 
@@ -33,9 +33,13 @@ class CommandlinePasswordProvier(object):
 
 def confirm(emails):
     log = logging.getLogger('CommandlineConfirmationProvier')
-    log.warn('about to forward [%d] emails:' % len(emails))
-    log.info('\n'.join(map(lambda x: x['Subject'], emails)))
-    return raw_input("continue?: ")
+    if len(emails):
+        log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['TO']))
+        log.info('\n'.join(map(lambda x: x['Subject'], emails)))
+        return raw_input("continue?: ").lower() in ('j', 'y')
+    else:
+        log.warn('all mails rejected.')
+        return False
 
 def main():
     ExpenseHelper().run()
@@ -70,19 +74,19 @@ class ExpenseHelper(object):
     
         categorized_emails = []
         for inbox in expense_inboxes:
-            emails = imap_connection.read_from(inbox)#, '(RFC822)')
+            emails = imap_connection.read_from(inbox, '(RFC822)')
             categorized_emails.extend(email_categorizer.categorize(inbox, emails))
     
-        log.info('categorized [%d] emails...now forwarding...' % len(categorized_emails))
+        log.info('categorized [%d] emails...now filtering...' % (len(categorized_emails)))
         
-        forward_candidates = EmailFilter(self.config_provider).filter_candidates(categorized_emails)
+        forward_candidates = EmailFilterHandler(self.config_provider).filter_candidates(categorized_emails)
         
         answer = self.confirmation_provider(forward_candidates)
-        if answer.lower() in ('j', 'y'):
+        if answer:
             smtp_connection = self.smtp_factory(self.config_provider.get('mail', 'smtp_server'))._login(username, password)
             for email in forward_candidates:
-                imap_connection.add_label(email, 'delivered')
                 smtp_connection.email(email)
+                imap_connection.add_label(email, 'delivered')
             smtp_connection.logout()
         else:
             log.warn('doing nothing. bye')
@@ -90,7 +94,7 @@ class ExpenseHelper(object):
 
 if __name__ == '__main__':
     try:
-        _checked_load_logging_config("~/.python/logging_debug.conf")
+        _checked_load_logging_config("~/.python/logging.conf")
     except:
         logging.basicConfig(stream=sys.stdout, level=logging.WARN)
     main()

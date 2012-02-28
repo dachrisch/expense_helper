@@ -27,7 +27,8 @@ class SmtpConnector(object):
         self.smtp.close()
         
     def email(self, email):
-        self.log.info('delivering mail [%(Subject)s] from [%(FROM)s] to [%(TO)s]...' % email)
+        self.log.info('delivering mail [%(Subject)s]...' % email)
+        self.log.debug('sending [%d] bytes from [%s] to [%s]...' % (len(email.as_string()), email['FROM'], email['TO']))
         self.smtp.sendmail(email['FROM'], email['TO'], email.as_string())
 
     @staticmethod

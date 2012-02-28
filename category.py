@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
 '''
 Created on Feb 23, 2012
 
@@ -34,9 +33,9 @@ class EmailCategorizer(object):
                 'order_date' : self.__parse_date(email['DATE']),
                 'provider' : self.__parse_provider(email),
                 'costcenter' : self.costcenter_matcher.costcenter_for(email),
-                'email' : email
+                'Subject' : email['Subject']
                 }
-        self.log.info('categorized [%(Subject)s] as: %(categorized)s' % (email))
+        self.log.info('categorized [%(Subject)s] as: [%(costcenter)s %(payment_type)s %(provider)s %(order_date)s]' % (email['categorized']))
         return email
     
     def __parse_date(self, send_date_rfc_2822):
@@ -70,28 +69,3 @@ class CostCenterMatcher(object):
             raise Exception('only one costcenter assignment allowed, but found [%d]: %s' % (len(costcenter_labels), costcenter_labels))
         return costcenter_labels[0]
 
-class EmailFilter(object):
-    def __init__(self, config_provider):
-        self.log = logging.getLogger('EmailForwarder')
-        self.config_provider = config_provider
-    def _accept(self, email):
-        accept = 'it-agile' != email['categorized']['provider']
-        return accept
-    def filter_candidates(self, emails):
-        candidate_emails = []
-        for email in emails:
-            if not self._accept(email):
-                self.log.warn('skipping mail [%s]' % email['Subject'])
-                continue
-            email.replace_header('FROM', self.config_provider.get('account', 'username'))
-            if 'TO' in email.keys():
-                email.replace_header('TO', self.config_provider.get('account', 'destination'))
-            else:
-                email.add_header('TO', self.config_provider.get('account', 'destination'))
-            categorized = email['categorized']
-            categorized['intro'] = 'Fwd:'
-            categorized['outro'] = '(was: %s)' % email['Subject']
-            email.replace_header('Subject', '%(intro)s %(costcenter)s %(payment_type)s %(provider)s %(order_date)s %(outro)s' % categorized)
-            del email['categorized']
-            candidate_emails.append(email)
-        return candidate_emails
