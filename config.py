@@ -11,9 +11,11 @@ class ExpenseConfigParser(object):
                         'username' : ('mail', 'username'),
                         'imap_server' : ('mail', 'imap_server'),
                         'smtp_server' : ('mail', 'smtp_server'),
+                        'sender' : ('mail', 'username'),
                         'receiver' : ('account', 'destination'),
                         'costcenter_label' : ('labels', 'costcenter'),
                         'expense_label' : ('labels', 'expense'),
+                        'delivered_label' : ('labels', 'delivered')
                         }
     def __init__(self, config_parser, filename):
         self.config_parser = config_parser

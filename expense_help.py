@@ -93,8 +93,9 @@ class ExpenseHelper(object):
             if answer:
                 with self.smtp_factory(self.config_provider.smtp_server).create_connection(username, password) as smtp_connection:
                     for email in forward_candidates:
+                        imap_connection.copy_to_inbox(email, '[Gmail]/Sent Mail')
                         smtp_connection.email(email)
-                        imap_connection.add_label(email, 'delivered')
+                        imap_connection.copy_to_inbox(email, self.config_provider.delivered_label)
             else:
                 log.warn('doing nothing. bye')
 

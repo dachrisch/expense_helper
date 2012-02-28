@@ -90,9 +90,9 @@ class ImapConnector(object):
         emails = self.__fetch_emails(uids, fetch_options)
         return emails
     
-    def add_label(self, email, label):
-        self.log.debug('%s %s %s' % ('COPY', email['UID'], label))
-        response, data = self.imap.uid('COPY', email['UID'], label)
+    def copy_to_inbox(self, email, inbox):
+        self.log.debug('%s %s %s' % ('COPY', email['UID'], inbox))
+        response, data = self.imap.uid('COPY', email['UID'], inbox)
         assert response == 'OK', response
     
     def _close(self):

@@ -13,13 +13,13 @@ class CommandlinePasswordProvier(object):
         return getpass.getpass('password for [%s]: ' % username)
 
 class CommandlineConfirmationProvier(object):
-    def __init__(self):
-        self.log = logging.getLogger('CommandlineConfirmationProvier')
-    def confirm(self, emails):
+    @staticmethod
+    def confirm(emails):
+        log = logging.getLogger('CommandlineConfirmationProvier')
         if len(emails):
-            self.log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['To']))
-            self.log.info('\n'.join(map(lambda x: x['Subject'], emails)))
+            log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['To']))
+            log.info('\n'.join(map(lambda x: x['Subject'], emails)))
             return raw_input("continue?: ").lower() in ('j', 'y')
         else:
-            self.log.warn('all mails rejected.')
+            log.warn('all mails rejected.')
             return False
