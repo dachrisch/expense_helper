@@ -36,18 +36,6 @@ class NotDeliveredFilter(EmailFilter):
     def __str__(self):
         return 'filter checking labels not to contain [%s]' % self._label
     
-class HasAttachmentFilter(EmailFilter):
-    def __init__(self):
-        EmailFilter.__init__(self)
-    def accept(self,email):
-        return self._log(email, any(map(HasAttachmentFilter.has_attachment, email.walk())))
-    def __str__(self):
-        return 'filter checking email to contain attachment'
-    @staticmethod
-    def has_attachment(part):
-        cd = part.get('Content-Disposition')
-        return cd is not None and cd.startswith('attachment')
-    
 class EmailFilterHandler(object):
     def __init__(self, config_provider):
         self.log = logging.getLogger('EmailFilterHandler')
@@ -63,14 +51,15 @@ class EmailFilterHandler(object):
         return accept
 
 class EmailCleanup(object):
-    def __init__(self, _from, to):
+    def __init__(self, _from, to, subject_pattern):
         self._from = _from
         self.to = to
+        self.subject_pattern = subject_pattern
     def __create_subject(self, email):
         categorized = email['categorized']
         categorized['intro'] = 'Fwd:'
         categorized['outro'] = '(was: %s)' % email['Subject']
-        email.replace_header('Subject', '%(intro)s %(costcenter)s %(payment_type)s %(provider)s %(order_date)s %(outro)s' % categorized)
+        email.replace_header('Subject', self.subject_pattern % categorized)
     def __cleanup_email(self, email):
         del email['categorized']
         del email['labels']

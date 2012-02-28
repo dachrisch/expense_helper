@@ -18,13 +18,14 @@ from ConfigParser import ConfigParser
 
 class DefaultConfiguration(object):
     def __init__(self):
-        self.costcenter_label = 'costcenter/'
-        self.expense_label = 'expense/'
+        self.costcenter_label = 'costcenter'
+        self.expense_label = 'expense'
         self.username = 'foo'
         self.imap_server = 'localhost'
         self.smtp_server = 'localhost'
         self.sender = 'me'
         self.receiver = 'me'
+        self.subject_pattern = '%(intro)s %(costcenter)s %(payment_type)s %(provider)s %(order_date)s %(outro)s'
 
 class DummyEmail(dict):
     def replace_header(self, header, value):
@@ -98,7 +99,7 @@ class ExpenseHelperTest(unittest.TestCase):
                             'costcenter' : 'K10',
                             'payment_type' : 'KKAR',
                             'order_date' : '02.03.2012'}
-        candidates = map(EmailCleanup('from', 'to').prepare_outbound, filter(EmailFilterHandler(DummyConfigProvider()).filter_candidate, (email, )))
+        candidates = map(EmailCleanup('from', 'to', DefaultConfiguration().subject_pattern).prepare_outbound, filter(EmailFilterHandler(DummyConfigProvider()).filter_candidate, (email, )))
         for c in candidates:
             assert 'Fwd: K10 KKAR here 02.03.2012 (was: foobar2)' == c['Subject'], c['Subject']
     def test_parse_labels(self):

@@ -62,9 +62,9 @@ class CostCenterMatcher(object):
 
     def costcenter_for(self, email):
         labels = email['labels']
-        costcenter_labels = map(lambda label: extract_nested_inbox(label), filter(lambda label: label.startswith(self.costcenter_inbox), labels))
+        costcenter_labels = map(lambda label: extract_nested_inbox(label), filter(lambda label: label.startswith('%s/' % self.costcenter_inbox), labels))
         if not costcenter_labels:
-            raise Exception('mail has no costcenter [%s<costcenter>] assigned, cannot process: %s' % (self.costcenter_inbox, email))
+            raise Exception('mail has no costcenter [%s/<costcenter>] assigned, cannot process: %s' % (self.costcenter_inbox, email))
         if len(costcenter_labels) > 1:
             raise Exception('only one costcenter assignment allowed, but found [%d]: %s' % (len(costcenter_labels), costcenter_labels))
         return costcenter_labels[0]

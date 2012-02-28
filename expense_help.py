@@ -19,7 +19,7 @@ from config import ExpenseConfigParser
 from handler.provider import CommandlinePasswordProvier, ConfirmationProvier
 
 def fetch_expense_inboxes(connection, config_provider):
-    return connection.filter_inboxes(lambda inbox: inbox.startswith('"' + config_provider.expense_label))
+    return connection.filter_inboxes(lambda inbox: inbox.startswith('"%s/' % config_provider.expense_label))
 
 def _checked_load_logging_config(config_path):
     expanded_config_path = path.expanduser(config_path)
@@ -37,7 +37,9 @@ def main():
     parser.add_option("-c", "--create-default-config", dest="create_default_config", action="store_true",
                       help="create a default config file", default=False)
     parser.add_option("-y", "--yes", dest="require_confirm", action="store_false",
-                      help="create a default config file", default=True)
+                      help="don't ask questions", default=True)
+    parser.add_option("--include-without-attachment", dest="attachment_only", action="store_false",
+                      help="include mails without attachments during forwarding", default=True)
 
     (options, args) = parser.parse_args()
     if options.verbose > 1:
@@ -51,7 +53,9 @@ def main():
     if options.create_default_config:
         config_parser.store()
     else:
-        ExpenseHelper(config_provider = config_parser.load(),
+        config_provider = config_parser.load()
+        config_provider.attachment_only = options.attachment_only
+        ExpenseHelper(config_provider = config_provider,
                       confirmation_provider = options.require_confirm and ConfirmationProvier.from_commandline or ConfirmationProvier.yes).run()
     
 class ExpenseHelper(object):
@@ -83,12 +87,14 @@ class ExpenseHelper(object):
         
             categorized_emails = []
             for inbox in expense_inboxes:
-                emails = imap_connection.read_from(inbox, '(RFC822)', '-label:%s has:attachment' % self.config_provider.delivered_label)
+                emails = imap_connection.read_from(inbox, 
+                                                    gmail_query = '-label:%s %s' % (self.config_provider.delivered_label, self.config_provider.attachment_only and 'has:attachment' or ''),
+                                                    fetch_options = '(RFC822)')
                 categorized_emails.extend(email_categorizer.categorize(inbox, emails))
         
             log.info('categorized [%d] emails...now filtering...' % (len(categorized_emails)))
             
-            forward_candidates = map(EmailCleanup(self.config_provider.sender, self.config_provider.receiver).prepare_outbound, 
+            forward_candidates = map(EmailCleanup(self.config_provider.sender, self.config_provider.receiver, self.config_provider.subject_pattern).prepare_outbound, 
                                      filter(EmailFilterHandler(self.config_provider).filter_candidate, categorized_emails))
     
             answer = self.confirmation_provider(forward_candidates)

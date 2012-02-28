@@ -15,7 +15,8 @@ class ExpenseConfigParser(object):
                         'receiver' : ('account', 'destination'),
                         'costcenter_label' : ('labels', 'costcenter'),
                         'expense_label' : ('labels', 'expense'),
-                        'delivered_label' : ('labels', 'delivered')
+                        'delivered_label' : ('labels', 'delivered'),
+                        'subject_pattern' : ('pattern', 'subject')
                         }
     def __init__(self, config_parser, filename):
         self.config_parser = config_parser
@@ -48,7 +49,7 @@ class ExpenseConfigParser(object):
         if not self.config_parser.has_option(section, option):
             raise Exception('no such option [%s] in section [%s] in [%s]' % (section, option, self.filename))
 
-        return self.config_parser.get(section, option)
+        return self.config_parser.get(section, option, raw = True)
     def __checked_set(self, section, option, value):
         if not self.config_parser.has_section(section):
             self.config_parser.add_section(section)

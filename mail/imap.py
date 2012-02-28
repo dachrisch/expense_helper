@@ -43,6 +43,7 @@ class ImapConnector(object):
         return filtered_inboxes
     
     def __search_uids(self, gmail_query):
+        self.log.debug('%s %s %s' % ('search', None, '(X-GM-RAW "%s")' % gmail_query))
         response, uids_data = self.imap.uid('search', None, '(X-GM-RAW "%s")' % gmail_query)
         assert response == 'OK', response
         uids = uids_data[0].split()
