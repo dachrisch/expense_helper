@@ -7,6 +7,7 @@ Created on Feb 23, 2012
 '''
 import smtplib 
 import logging
+from contextlib import contextmanager
 
 class SmtpConnector(object):
     
@@ -14,8 +15,14 @@ class SmtpConnector(object):
         self.log = logging.getLogger('SmtpConnectorFactory')
         self.smtp = smtp
 
+    @contextmanager
+    def create_connection(self, username, password):
+        try:
+            yield self.__login(username, password)
+        finally:
+            self._close()
 
-    def _login(self, username, password):
+    def __login(self, username, password):
         self.log.info('logging in [%s]' % username)
         self.smtp.ehlo()
         self.smtp.starttls()
@@ -23,13 +30,14 @@ class SmtpConnector(object):
         self.smtp.login(username, password)
         return self
 
-    def logout(self):
-        self.smtp.close()
+    def _close(self):
+        self.log.info('closing smtp connection.')
+        self.smtp.quit()
         
     def email(self, email):
         self.log.info('delivering mail [%(Subject)s]...' % email)
-        self.log.debug('sending [%d] bytes from [%s] to [%s]...' % (len(email.as_string()), email['FROM'], email['TO']))
-        self.smtp.sendmail(email['FROM'], email['TO'], email.as_string())
+        self.log.debug('sending [%d] bytes from [%s] to [%s]...' % (len(email.as_string()), email['From'], email['To']))
+        self.smtp.sendmail(email['From'], email['To'], email.as_string())
 
     @staticmethod
     def connector_for(server):

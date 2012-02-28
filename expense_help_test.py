@@ -12,6 +12,7 @@ from filter import EmailFilterHandler
 import re
 import shlex
 from mail.imap import ImapConnector
+from mail.smtp import SmtpConnector
 
 class DefaultConfiguration(object):
     def get(self, section, property):
@@ -40,12 +41,14 @@ def dummy_mail():
     email['labels'] = ('costcenter/K11', )
     return email
 
-class DummySmtpConnector(object):
-    def _login(self, username, password):
-        return self
-    def email(self, email):
-        pass    
-    def logout(self):
+class DummySmtp(object):
+    def close(self):
+        pass
+    def ehlo(self):
+        pass
+    def starttls(self):
+        pass
+    def login(self, username, password):
         pass
 
 class TestPasswordProvider(object):
@@ -67,7 +70,7 @@ def dummy_imap_factory(server):
     return ImapConnector(DummyImap())
 
 def dummy_smtp_factory(server):
-    return DummySmtpConnector()
+    return SmtpConnector(DummySmtp())
 
 class ExpenseHelperTest(unittest.TestCase):
     def test_run(self):

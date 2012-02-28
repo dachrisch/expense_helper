@@ -34,7 +34,7 @@ class CommandlinePasswordProvier(object):
 def confirm(emails):
     log = logging.getLogger('CommandlineConfirmationProvier')
     if len(emails):
-        log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['TO']))
+        log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['To']))
         log.info('\n'.join(map(lambda x: x['Subject'], emails)))
         return raw_input("continue?: ").lower() in ('j', 'y')
     else:
@@ -42,6 +42,10 @@ def confirm(emails):
         return False
 
 def main():
+    try:
+        _checked_load_logging_config("~/.python/logging.conf")
+    except:
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     ExpenseHelper().run()
     
 class ExpenseHelper(object):
@@ -83,17 +87,12 @@ class ExpenseHelper(object):
             
             answer = self.confirmation_provider(forward_candidates)
             if answer:
-                smtp_connection = self.smtp_factory(self.config_provider.get('mail', 'smtp_server'))._login(username, password)
-                for email in forward_candidates:
-                    smtp_connection.email(email)
-                    imap_connection.add_label(email, 'delivered')
-                smtp_connection.logout()
+                with self.smtp_factory(self.config_provider.get('mail', 'smtp_server')).create_connection(username, password) as smtp_connection:
+                    for email in forward_candidates:
+                        smtp_connection.email(email)
+                        imap_connection.add_label(email, 'delivered')
             else:
                 log.warn('doing nothing. bye')
 
 if __name__ == '__main__':
-    try:
-        _checked_load_logging_config("~/.python/logging.conf")
-    except:
-        logging.basicConfig(stream=sys.stdout, level=logging.WARN)
     main()

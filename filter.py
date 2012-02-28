@@ -54,7 +54,7 @@ class EmailFilterHandler(object):
         self.config_provider = config_provider
         self.__add_filter()
     def __add_filter(self):
-        self._filters = (NotDeliveredFilter(), RejectingProviderFilter('it-agile'), HasAttachmentFilter())
+        self._filters = (NotDeliveredFilter(), RejectingProviderFilter('it-agile'))
         
     def _accept(self, email):
         accept = True
@@ -79,9 +79,9 @@ class EmailFilterHandler(object):
         del email['categorized']
         del email['labels']
     def __send_to(self, email, to):
-        if 'TO' in email.keys():
-            email.replace_header('TO', to)
+        if 'To' in email.keys():
+            email.replace_header('To', to)
         else:
-            email.add_header('TO', to)
+            email.add_header('To', to)
     def __email_from(self, email, _from):
-        email.replace_header('FROM', _from)
+        email.replace_header('From', _from)

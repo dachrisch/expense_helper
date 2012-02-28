@@ -42,7 +42,7 @@ class ImapConnector(object):
         return filtered_inboxes
     
     def __search_uids(self):
-        response, uids_data = self.imap.uid('search', None, 'ALL')
+        response, uids_data = self.imap.uid('search', None, '(X-GM-RAW "-label:delivered has:attachment")')
         assert response == 'OK', response
         uids = uids_data[0].split()
         return uids
@@ -95,7 +95,7 @@ class ImapConnector(object):
         assert response == 'OK', response
     
     def _close(self):
-        print('logout')
+        self.log.info('closing imap connection.')
         self.imap.close()
 
     @staticmethod
