@@ -11,6 +11,7 @@ import logging
 import time
 from email.utils import parsedate 
 from datetime import date
+from mail.imap import unencode_header
 
 def extract_nested_inbox(inbox):
     return inbox.split('/')[-1].replace('"', '').replace(' ', '')
@@ -33,7 +34,7 @@ class EmailCategorizer(object):
                 'order_date' : self.__parse_date(email['DATE']),
                 'provider' : self.__parse_provider(email),
                 'costcenter' : self.costcenter_matcher.costcenter_for(email),
-                'Subject' : email['Subject']
+                'Subject' : unencode_header(email['Subject'])
                 }
         self.log.info('categorized [%(Subject)s] as: [%(costcenter)s %(payment_type)s %(provider)s %(order_date)s]' % (email['categorized']))
         return email

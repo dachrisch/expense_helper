@@ -14,6 +14,11 @@ import re
 import shlex
 from contextlib import contextmanager
 
+def unencode_header(text):
+    texts_with_charsets = decode_header(text)
+    decoded_text = ''.join([ unicode(t[0], t[1] or 'ASCII') for t in texts_with_charsets ])
+    return decoded_text.encode('utf-8')
+
 class ImapConnector(object):
     def __init__(self, imap):
         self.imap = imap
@@ -55,16 +60,11 @@ class ImapConnector(object):
             assert response == 'OK', response
             parsed_email = email.message_from_string(rfc822_mail[0][1])
             self.__store_uid(parsed_email, uid)
-            self.__restore_subject(parsed_email)
             self.__fetch_labels(parsed_email)
             yield parsed_email
 
     def __store_uid(self, email, uid):
         email['UID'] = uid
-
-    def __restore_subject(self, email):
-        if 'Subject' in email.keys():
-            email.replace_header('Subject', self.__remove_encoding(email['Subject']))
 
     def __fetch_labels(self, email):
         assert email['UID']
@@ -74,11 +74,6 @@ class ImapConnector(object):
         m = label_pattern.match(label_data[0])
         if m:
             email['labels'] = shlex.split(m.group('labels'))
-        
-    def __remove_encoding(self, text):
-        texts_with_charsets = decode_header(text)
-        decoded_text = ''.join([ unicode(t[0], t[1] or 'ASCII') for t in texts_with_charsets ])
-        return decoded_text.encode('utf-8')
 
     def read_from(self, inbox, gmail_query, fetch_options = '(BODY[HEADER.FIELDS (DATE SUBJECT FROM)])'):
         self.imap.select(inbox, readonly = False)
