@@ -7,7 +7,6 @@ Created on Feb 28, 2012
 '''
 import logging
 import getpass
-from mail.imap import unencode_header
 class CommandlinePasswordProvier(object):
     @staticmethod
     def password(username):
@@ -20,7 +19,7 @@ class ConfirmationProvier(object):
         accepting = ('j', 'y')
         if len(emails):
             log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['To']))
-            log.info('\n'.join(map(lambda mail: unencode_header(mail['Subject']), emails)))
+            log.info('\n'.join(map(lambda x: x['Subject'], emails)))
             return raw_input("%s to continue or any other key to abort: " % str(accepting)).lower() in accepting
         else:
             log.warn('all mails rejected.')
