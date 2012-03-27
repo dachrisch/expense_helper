@@ -6,7 +6,6 @@ Created on Feb 28, 2012
 @author: cda
 '''
 import logging
-from mail.imap import unencode_header
 class EmailFilter(object):
     def __init__(self):
         self.log = logging.getLogger('EmailFilter')
@@ -14,9 +13,9 @@ class EmailFilter(object):
         pass
     def _log(self, email, result):
         if result:
-            self.log.debug('PASS - [%s] - accepting email [%s]' % (self, unencode_header(email['Subject'])))
+            self.log.debug('PASS - [%s] - accepting email [%s]' % (self, email['Subject']))
         else:
-            self.log.info('FAIL - [%s] - rejecting email [%s]' % (self, unencode_header(email['Subject'])))
+            self.log.info('FAIL - [%s] - rejecting email [%s]' % (self, email['Subject']))
         return result
 
 class RejectingProviderFilter(EmailFilter):
