@@ -6,6 +6,7 @@ Created on Feb 28, 2012
 @author: cda
 '''
 import logging
+from email.header import Header
 class EmailFilter(object):
     def __init__(self):
         self.log = logging.getLogger('EmailFilter')
@@ -51,15 +52,16 @@ class EmailFilterHandler(object):
         return accept
 
 class EmailCleanup(object):
-    def __init__(self, _from, to, subject_pattern):
+    def __init__(self, _from, to, subject_pattern, subject_encoding = 'iso-8859-1'):
         self._from = _from
         self.to = to
         self.subject_pattern = subject_pattern
+        self.subject_encoding = subject_encoding
     def __create_subject(self, email):
         categorized = email['categorized']
         categorized['intro'] = 'Fwd:'
-        categorized['outro'] = '(was: %s)' % email['Subject']
-        email.replace_header('Subject', self.subject_pattern % categorized)
+        categorized['outro'] = '(was: %s)' % unicode(str(email['Subject']), 'utf-8').encode(self.subject_encoding)
+        email.replace_header('Subject',  Header(self.subject_pattern % categorized, self.subject_encoding))
     def __cleanup_email(self, email):
         del email['categorized']
         del email['labels']

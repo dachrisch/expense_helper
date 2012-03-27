@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 '''
 Created on Feb 23, 2012
 
@@ -15,6 +18,8 @@ import shlex
 from mail.imap import ImapConnector
 from mail.smtp import SmtpConnector
 from ConfigParser import ConfigParser
+from email.header import Header, make_header
+from email.message import Message
 
 class DefaultConfiguration(object):
     def __init__(self):
@@ -101,7 +106,8 @@ class ExpenseHelperTest(unittest.TestCase):
                             'order_date' : '02.03.2012'}
         candidates = map(EmailCleanup('from', 'to', DefaultConfiguration().subject_pattern).prepare_outbound, filter(EmailFilterHandler(DummyConfigProvider()).filter_candidate, (email, )))
         for c in candidates:
-            assert 'Fwd: K10 KKAR here 02.03.2012 (was: foobar2)' == c['Subject'], c['Subject']
+            self.assertEqual(str(c['Subject']), 
+                             '=?iso-8859-1?q?Fwd=3A_K10_KKAR_here_02=2E03=2E2012_=28was=3A_=28=27foobar?=\n =?iso-8859-1?q?2=27=2C=29=29?=')
     def test_parse_labels(self):
         response, label_data = ('OK', ['5 (X-GM-LABELS ("\\\\Sent" "cost center" spesen travel spesen/KKJC) UID 6)'])
         p = re.compile('\d+ \(X-GM-LABELS \((?P<labels>.*)\) UID \d+\)')
@@ -127,6 +133,22 @@ class ExpenseHelperTest(unittest.TestCase):
         e = ExpenseConfigParser(ConfigParser(), f.name)
         e.store()
         e.load()
+        
+    def test_header_conversion(self):
+        def convert(string):
+            return str(Header(string.encode('iso-8859-1'), 'iso-8859-1'))
+        self.assertEqual(convert(unicode('(was: Vielen Dank für Ihren Fahrkartenkauf! (Auftrag TSYLM7))', 'utf-8')), 
+                        '=?iso-8859-1?q?=28was=3A_Vielen_Dank_f=FCr_Ihren_Fahrkartenkauf!_=28Auftr?=\n =?iso-8859-1?q?ag_TSYLM7=29=29?=')
+
+    def test_encode_subject(self):
+        email = Message()
+        email.add_header('Subject', 'Vielen Dank für Ihren Fahrkartenkauf! (Auftrag TSYLM7)')
+        email.add_header('From', '_value')
+        email['categorized'] = {}
+        out_mail = EmailCleanup('_from', 'to', '%(outro)s').prepare_outbound(email)
+        self.assertEqual(str(out_mail['Subject']),
+                         '=?iso-8859-1?q?=28was=3A_Vielen_Dank_f=FCr_Ihren_Fahrkartenkauf!_=28Auftr?=\n =?iso-8859-1?q?ag_TSYLM7=29=29?=')
+        
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)

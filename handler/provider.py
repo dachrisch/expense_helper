@@ -19,7 +19,7 @@ class ConfirmationProvier(object):
         accepting = ('j', 'y')
         if len(emails):
             log.warn('about to forward [%d] emails to [%s]:' % (len(emails), emails[0]['To']))
-            log.info('\n'.join(map(lambda x: x['Subject'], emails)))
+            log.info('\n'.join(map(lambda email: '%(Subject)s' % email , emails)))
             return raw_input("%s to continue or any other key to abort: " % str(accepting)).lower() in accepting
         else:
             log.warn('all mails rejected.')
